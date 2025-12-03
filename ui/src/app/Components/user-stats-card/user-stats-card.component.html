@@ -1,0 +1,55 @@
+<div class="stats-card">
+    <div class="stats-header">
+        <div class="level-badge">
+            <span class="level-icon">⭐</span>
+            <span class="level-name">{{stats.level}}</span>
+        </div>
+        <div class="streak-counter">
+            <span class="streak-icon">🔥</span>
+            <span class="streak-count">{{stats.streak}} day streak</span>
+        </div>
+    </div>
+
+    <div class="xp-section">
+        <div class="xp-info">
+            <span class="xp-label">Experience</span>
+            <span class="xp-value">{{stats.xp}} / {{stats.xpToNextLevel}} XP</span>
+        </div>
+        <div class="xp-bar">
+            <div class="xp-fill" [style.width.%]="xpPercentage"></div>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-item">
+            <div class="stat-icon">💼</div>
+            <div class="stat-value">{{stats.points}}</div>
+            <div class="stat-label">Total Points</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-icon">💡</div>
+            <div class="stat-value">{{stats.ideasPosted}}</div>
+            <div class="stat-label">Ideas Posted</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-icon">👍</div>
+            <div class="stat-value">{{stats.votesReceived}}</div>
+            <div class="stat-label">Votes Received</div>
+        </div>
+    </div>
+
+    <div class="badges-section">
+        <div class="badges-header">
+            <span class="badges-title">Badges</span>
+            <span class="badges-count">{{earnedBadges.length}}/{{stats.badges.length}}</span>
+        </div>
+        <div class="badges-grid">
+            @for (badge of stats.badges; track badge.id) {
+            <div class="badge-item" [class.earned]="badge.earned" [title]="badge.description">
+                <span class="badge-icon">{{badge.icon}}</span>
+                <span class="badge-name">{{badge.name}}</span>
+            </div>
+            }
+        </div>
+    </div>
+</div>

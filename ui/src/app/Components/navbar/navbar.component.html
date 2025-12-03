@@ -1,57 +1,139 @@
-<div class="navbar">
-  <div class="navbar-left">
-    <img src="assets/adept-logo.png" alt="Logo" class="logo-image" />
-
-    <!--If logged out this text should lead to the landing page otherwise
-    it should lead to the home page-->
-    @if (loggedInStatus | async; as isLoggedIn) {
-      <a class="product-text" [routerLink]="'/home'">Ideahub</a>
-    } @else {
-      <a class="product-text" [routerLink]="'/'">Ideahub</a>
-    }
-
-  </div>
-  @if (loggedInStatus | async; as isLoggedIn) {
-    <nav class="nav-items">
-      <a routerLink="/home" class="nav-link">Home</a>
-      <a routerLink="/ideas" class="nav-link">Ideas</a>
-      <a routerLink="/groups" class="nav-link">Groups</a>
-      <a routerLink="/projects" class="nav-link">Projects</a>
-      <a routerLink="/user-manual" class="nav-link">User Manual</a>
-    </nav>
-  } @else {
-    <nav class="nav-items">
-      <a routerLink="/about" class="nav-link">About</a>
-      <a routerLink="/pricing" class="nav-link">Pricing</a>
-      <a routerLink="/contacts" class="nav-link">Contacts</a>
-      <a routerLink="/documentation" class="nav-link">Documentation</a>
-    </nav>
-  }
-
-
-
-  <div class="navbar-right">
-    @if (loggedInStatus | async; as isLoggedIn) {
-      <app-buttons
-        [buttonText]="'LOG OUT'"
-        [buttonStyleClass]="'btn-logout-navbar'"
-        [buttonType]="'button'"
-        (click) = "onLogout()"
-        />
-      } @else {
-        <app-buttons
-          [buttonText]="'LOG IN'"
-          [buttonStyleClass]="'btn-login-navbar'"
-          [buttonType]="'button'"
-          [buttonLink]="'/login'"
-          />
-          <app-buttons
-            [buttonText]="'SIGN UP'"
-            [buttonStyleClass]="'btn-signup-navbar'"
-            [buttonType]="'button'"
-            [buttonLink]="'/register'"
-            />
-          }
-
-        </div>
+<nav class="top-navbar">
+  <div class="navbar-container">
+    <!-- Left: Search -->
+    <div class="navbar-left">
+      <button class="menu-btn" (click)="onToggleSidebar()">
+        <span class="icon">☰</span>
+      </button>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Search ideas, people, topics..." (input)="onSearch($event)"
+          [(ngModel)]="searchQuery" />
       </div>
+
+      <!-- Search Results Dropdown -->
+      @if (showSearch && searchQuery) {
+      <div class="search-results">
+        <div class="search-header">
+          <span>Search Results</span>
+          <span class="result-count">{{searchResults.length}} results</span>
+        </div>
+        @for (result of searchResults; track result) {
+        <div class="search-result-item">
+          @if (result.type === 'idea') {
+          <span class="result-icon">💡</span>
+          <div class="result-info">
+            <div class="result-title">{{result.title}}</div>
+            <div class="result-meta">{{result.votes}} votes</div>
+          </div>
+          }
+          @if (result.type === 'person') {
+          <span class="result-icon">👤</span>
+          <div class="result-info">
+            <div class="result-title">{{result.name}}</div>
+            <div class="result-meta">{{result.role}}</div>
+          </div>
+          }
+          @if (result.type === 'topic') {
+          <span class="result-icon">🏷️</span>
+          <div class="result-info">
+            <div class="result-title">{{result.name}}</div>
+            <div class="result-meta">{{result.count}} ideas</div>
+          </div>
+          }
+        </div>
+        }
+      </div>
+      }
+    </div>
+
+    <!-- Right: Actions -->
+    <div class="navbar-right">
+      <!-- Notifications -->
+      <div class="notification-container">
+        <button class="nav-action-btn" title="Notifications" (click)="toggleNotifications()">
+          <span class="icon">🔔</span>
+          @if (unreadCount > 0) {
+          <span class="badge">{{unreadCount}}</span>
+          }
+        </button>
+
+        <!-- Notifications Dropdown -->
+        @if (showNotifications) {
+        <div class="notifications-panel">
+          <div class="notifications-header">
+            <h3>Notifications</h3>
+            <button class="mark-all-btn" (click)="markAllAsRead()">Mark all read</button>
+          </div>
+          <div class="notifications-list">
+            @for (notif of notifications; track notif.id) {
+            <div class="notification-item" [class.unread]="!notif.read" (click)="markAsRead(notif.id)">
+              <div class="notif-icon" [class]="notif.type">
+                @if (notif.type === 'vote') { <span>👍</span> }
+                @if (notif.type === 'comment') { <span>💬</span> }
+                @if (notif.type === 'mention') { <span>@</span> }
+                @if (notif.type === 'status') { <span>✅</span> }
+              </div>
+              <div class="notif-content">
+                <p>{{notif.message}}</p>
+                <span class="notif-time">{{notif.time}}</span>
+              </div>
+              @if (!notif.read) {
+              <div class="unread-dot"></div>
+              }
+            </div>
+            }
+          </div>
+        </div>
+        }
+      </div>
+
+      <!-- Messages -->
+      <button class="nav-action-btn" title="Messages">
+        <span class="icon">💬</span>
+      </button>
+
+      <!-- Help -->
+      <button class="nav-action-btn" title="Help">
+        <span class="icon">❓</span>
+      </button>
+
+      <!-- Divider -->
+      <div class="divider"></div>
+
+      <!-- User Menu -->
+      <div class="user-menu-container">
+        <button class="user-menu-btn" (click)="toggleUserMenu()">
+          <div class="user-avatar">U</div>
+          <div class="user-info">
+            <span class="user-name">User Name</span>
+            <span class="user-role">Specialist</span>
+          </div>
+          <span class="chevron">▼</span>
+        </button>
+
+        @if (showUserMenu) {
+        <div class="user-dropdown">
+          <a [routerLink]="['/profile']" class="dropdown-item">
+            <span class="item-icon">👤</span>
+            <span>Profile</span>
+          </a>
+          <a [routerLink]="['/settings']" class="dropdown-item">
+            <span class="item-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
+          <a [routerLink]="['/leaderboard']" class="dropdown-item">
+            <span class="item-icon">🏆</span>
+            <span>Leaderboard</span>
+          </a>
+          <div class="dropdown-divider"></div>
+          <button (click)="onLogout()" class="dropdown-item logout">
+            <span class="item-icon">🚪</span>
+            <span>Logout</span>
+          </button>
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+</nav>

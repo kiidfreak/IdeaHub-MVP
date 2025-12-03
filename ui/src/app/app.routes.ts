@@ -38,4 +38,40 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./Pages/home/home.component').then((m) => m.HomeComponent),
   },
+  {
+    path: 'leaderboard',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/leaderboard/leaderboard.component').then((m) => m.LeaderboardComponent),
+  },
+  {
+    path: 'profile',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/profile/profile.component').then((m) => m.ProfileComponent),
+  },
+  {
+    path: 'settings',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/settings/settings.component').then((m) => m.SettingsComponent),
+  },
+  {
+    path: 'ideas',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/ideas/ideas.component').then((m) => m.IdeasComponent),
+  },
+  {
+    path: 'analytics',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/analytics/analytics.component').then((m) => m.AnalyticsComponent),
+  },
+  {
+    path: 'activity',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/activity/activity.component').then((m) => m.ActivityComponent),
+  },
 ];

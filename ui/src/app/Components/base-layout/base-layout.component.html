@@ -1,8 +1,7 @@
-<div class="base-layout-component">
-    <app-sidebar/>
-    <div class="main-content">
-        <router-outlet>
-            <ng-content></ng-content>
-        </router-outlet>
-    </div>
+<div class="base-layout" [class.collapsed]="isSidebarCollapsed">
+    <app-sidebar [isCollapsed]="isSidebarCollapsed" (toggle)="toggleSidebar()"></app-sidebar>
+    <app-navbar (toggleSidebar)="toggleSidebar()"></app-navbar>
+    <main class="main-content">
+        <ng-content></ng-content>
+    </main>
 </div>

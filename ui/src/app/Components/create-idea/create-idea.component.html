@@ -1,0 +1,48 @@
+<div class="modal-overlay" (click)="onClose()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h2>✨ Share Your Idea</h2>
+            <button class="close-btn" (click)="onClose()">×</button>
+        </div>
+
+        <form [formGroup]="ideaForm" (ngSubmit)="onSubmit()">
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" formControlName="title" placeholder="What's your big idea?">
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea formControlName="description" rows="5"
+                    placeholder="Describe your idea in detail..."></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select formControlName="category">
+                        @for (cat of categories; track cat) {
+                        <option [value]="cat">{{cat}}</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select formControlName="priority">
+                        @for (p of priorities; track p) {
+                        <option [value]="p">{{p}}</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" (click)="onClose()">Cancel</button>
+                <button type="submit" class="btn-primary" [disabled]="!ideaForm.valid">
+                    🚀 Post Idea
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

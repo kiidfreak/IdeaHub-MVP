@@ -13,7 +13,7 @@ import { Router } from '@angular/router';
 export class AuthService {
   router = inject(Router);
 
-  private readonly authUrl = 'http://localhost:5065/api/auth';
+  private readonly authUrl = 'http://localhost:5095/api/auth';
 
   private _isLoggedIn = new BehaviorSubject<boolean>(false);
   isLoggedIn$: Observable<boolean> = this._isLoggedIn.asObservable();
@@ -48,7 +48,7 @@ export class AuthService {
       tap((response) => {
         //If status is true i.e. login was successful,store the tokens
         //and change _isLoggedIn behaviorSubject to true
-        if (response.status && response.data?.accessToken) {
+        if (response.success && response.data?.accessToken) {
           console.log('Login successful: ', response);
 
           localStorage.setItem('accessToken', response.data.accessToken);
@@ -71,11 +71,11 @@ export class AuthService {
     );
   }
 
-  logout(): Observable<any>{
+  logout(): Observable<any> {
     console.log("User logging out...")
 
     return this.http.post<ApiResponse>(`${this.authUrl}/logout`, {}).pipe(
-      tap(()=>{
+      tap(() => {
         console.log("User logged out successfully");
 
         //Delete access token, refresh token and refresh token expiry
@@ -89,10 +89,10 @@ export class AuthService {
         //Redirect user to landing page
         this.router.navigate(['/']);
       }),
-      catchError((error: HttpErrorResponse)=>{
+      catchError((error: HttpErrorResponse) => {
         console.error(`Logout failed: ${error}`);
-        
-        if(error.status == 401 || error.status == 403 || error.status == 400){
+
+        if (error.status == 401 || error.status == 403 || error.status == 400) {
           console.error("Clearing local tokens due to failed logout/invalid token");
 
           localStorage.removeItem('accessToken');

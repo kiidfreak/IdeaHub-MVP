@@ -1,0 +1,79 @@
+<app-base-layout>
+    <div class="profile-container">
+        <header class="profile-header">
+            <h1>👤 Profile</h1>
+            <p class="subtitle">Manage your profile and track your contributions</p>
+        </header>
+
+        <div class="profile-grid">
+            <!-- User Info Card -->
+            <div class="user-card">
+                <div class="user-avatar-large">{{user.avatar}}</div>
+                <h2>{{user.name}}</h2>
+                <p class="user-email">{{user.email}}</p>
+                <div class="user-meta">
+                    <div class="meta-item">
+                        <span class="meta-icon">💼</span>
+                        <span>{{user.role}}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-icon">🏢</span>
+                        <span>{{user.department}}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-icon">📅</span>
+                        <span>Joined {{user.joinDate}}</span>
+                    </div>
+                </div>
+                <button class="edit-profile-btn">✏️ Edit Profile</button>
+            </div>
+
+            <!-- Stats Card -->
+            <app-user-stats-card></app-user-stats-card>
+
+            <!-- Contributions Card -->
+            <div class="contributions-card">
+                <h3>📊 Contributions</h3>
+                <div class="contributions-grid">
+                    <div class="contribution-item">
+                        <div class="contribution-value">{{contributions.ideasPosted}}</div>
+                        <div class="contribution-label">Ideas Posted</div>
+                    </div>
+                    <div class="contribution-item">
+                        <div class="contribution-value">{{contributions.commentsGiven}}</div>
+                        <div class="contribution-label">Comments</div>
+                    </div>
+                    <div class="contribution-item">
+                        <div class="contribution-value">{{contributions.votesReceived}}</div>
+                        <div class="contribution-label">Votes Received</div>
+                    </div>
+                    <div class="contribution-item">
+                        <div class="contribution-value">{{contributions.helpfulVotes}}</div>
+                        <div class="contribution-label">Helpful Votes</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Ideas -->
+            <div class="recent-ideas-card">
+                <h3>💡 Recent Ideas</h3>
+                <div class="ideas-list">
+                    @for (idea of recentIdeas; track idea.id) {
+                    <div class="idea-item">
+                        <div class="idea-info">
+                            <h4>{{idea.title}}</h4>
+                            <div class="idea-stats">
+                                <span class="votes">👍 {{idea.votes}}</span>
+                                <span class="status" [class]="idea.status.toLowerCase().replace(' ', '-')">
+                                    {{idea.status}}
+                                </span>
+                            </div>
+                        </div>
+                        <button class="view-btn">View →</button>
+                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</app-base-layout>

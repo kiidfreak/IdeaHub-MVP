@@ -1,0 +1,160 @@
+<app-base-layout>
+    <div class="settings-container">
+        <header class="settings-header">
+            <h1>⚙️ Settings</h1>
+            <p class="subtitle">Customize your IdeaHub experience</p>
+        </header>
+
+        <div class="settings-content">
+            <!-- Notifications Section -->
+            <div class="settings-section">
+                <h2>🔔 Notifications</h2>
+                <div class="settings-group">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Email Notifications</h3>
+                            <p>Receive updates via email</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" [(ngModel)]="settings.notifications.emailNotifications">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Push Notifications</h3>
+                            <p>Get instant browser notifications</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" [(ngModel)]="settings.notifications.pushNotifications">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Weekly Digest</h3>
+                            <p>Summary of activity every week</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" [(ngModel)]="settings.notifications.weeklyDigest">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Idea Updates</h3>
+                            <p>Notify me when my ideas get votes or comments</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" [(ngModel)]="settings.notifications.ideaUpdates">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>New Comments</h3>
+                            <p>Alert me about new comments on ideas I follow</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" [(ngModel)]="settings.notifications.newComments">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Section -->
+            <div class="settings-section">
+                <h2>🔒 Privacy</h2>
+                <div class="settings-group">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Profile Visibility</h3>
+                            <p>Who can see your profile</p>
+                        </div>
+                        <select [(ngModel)]="settings.privacy.profileVisibility" class="select-input">
+                            <option value="public">Public</option>
+                            <option value="team">Team Only</option>
+                            <option value="private">Private</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Show Email</h3>
+                            <p>Display email address on profile</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" [(ngModel)]="settings.privacy.showEmail">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Show Statistics</h3>
+                            <p>Display contribution stats publicly</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" [(ngModel)]="settings.privacy.showStats">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preferences Section -->
+            <div class="settings-section">
+                <h2>🎨 Preferences</h2>
+                <div class="settings-group">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Theme</h3>
+                            <p>Choose your preferred theme</p>
+                        </div>
+                        <select [(ngModel)]="settings.preferences.theme" class="select-input">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                            <option value="auto">Auto</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Language</h3>
+                            <p>Select your language</p>
+                        </div>
+                        <select [(ngModel)]="settings.preferences.language" class="select-input">
+                            <option value="en">English</option>
+                            <option value="es">Español</option>
+                            <option value="fr">Français</option>
+                            <option value="de">Deutsch</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Items Per Page</h3>
+                            <p>Number of ideas to display per page</p>
+                        </div>
+                        <select [(ngModel)]="settings.preferences.itemsPerPage" class="select-input">
+                            <option [value]="10">10</option>
+                            <option [value]="20">20</option>
+                            <option [value]="50">50</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="settings-actions">
+                <button class="save-btn" (click)="saveSettings()">💾 Save Changes</button>
+                <button class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+</app-base-layout>

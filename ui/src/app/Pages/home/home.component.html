@@ -1,3 +1,29 @@
 <app-base-layout>
-    <p>Under construction. Visit the other pages.</p>
+    <div class="home-container">
+        <header class="home-header">
+            <h1>IdeaHub</h1>
+            <div class="header-actions">
+                <button (click)="showCreateModal = true" class="create-btn">✨ New Idea</button>
+                <button (click)="logout()" class="logout-btn">Log Out</button>
+            </div>
+        </header>
+
+        @if (showCreateModal) {
+        <app-create-idea (close)="showCreateModal = false" (created)="loadIdeas()">
+        </app-create-idea>
+        }
+
+        <app-user-stats-card class="stats-section"></app-user-stats-card>
+
+        <main class="ideas-grid">
+            @for (idea of ideas; track idea.id) {
+            <app-idea-card [idea]="idea" (vote)="onVote($event)" (viewDetails)="onViewDetails($event)">
+            </app-idea-card>
+            } @empty {
+            <div class="no-ideas">
+                <p>No ideas found. Be the first to share one!</p>
+            </div>
+            }
+        </main>
+    </div>
 </app-base-layout>
