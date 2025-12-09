@@ -14,7 +14,8 @@ import {
   heroBuildingOffice2,
   heroLightBulb,
   heroHandThumbUp,
-  heroBriefcase
+  heroBriefcase,
+  heroClock
 } from '@ng-icons/heroicons/outline';
 
 @Component({
@@ -31,7 +32,8 @@ import {
     heroBuildingOffice2,
     heroLightBulb,
     heroHandThumbUp,
-    heroBriefcase
+    heroBriefcase,
+    heroClock
   })],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
@@ -43,6 +45,7 @@ export class HomeComponent implements OnInit {
   ideaStats: any = null;
   groupEngagement: any[] = [];
   personalStats: any = null;
+  recentActivity: any[] = [];
 
   constructor(private analyticsService: AnalyticsService) { }
 
@@ -92,5 +95,13 @@ export class HomeComponent implements OnInit {
       },
       error: (err) => console.error('Error fetching personal stats', err)
     });
+
+    this.analyticsService.getRecentActivity().subscribe({
+      next: (res) => {
+        if (res.status) this.recentActivity = res.data;
+      },
+      error: (err) => console.error('Error fetching recent activity', err)
+    });
   }
 }
+

@@ -138,6 +138,29 @@
             </div>
         </div>
 
+        <!-- Recent Activity (Merged from remote) -->
+        <div class="card recent-activity" *ngIf="recentActivity && recentActivity.length > 0">
+            <div class="card-header">
+                <h2>Recent Activity</h2>
+                <span class="icon"><ng-icon name="heroClock"></ng-icon></span>
+            </div>
+            <div class="card-content">
+                <div *ngFor="let activity of recentActivity" class="list-item">
+                    <div class="item-main">
+                        <h3>{{ activity.title }}</h3>
+                        <p>Group: {{ activity.groupName }}</p>
+                    </div>
+                    <div class="item-meta">
+                        <span class="badge"
+                            [ngClass]="{'vote-badge': activity.status === 0, 'idea-badge': activity.status === 1}">
+                            {{ activity.status === 0 ? 'Open' : 'Closed' }}
+                        </span>
+                        <span class="date">{{ activity.createdAt | date:'mediumDate' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Personal Stats -->
         <div class="personal-stats-section" *ngIf="personalStats">
             <h2>Your Impact</h2>

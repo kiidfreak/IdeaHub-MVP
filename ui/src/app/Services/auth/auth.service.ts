@@ -40,11 +40,9 @@ export class AuthService {
   }
 
   login(loginData: Login): Observable<any> {
-
     return this.http.post<ApiResponse>(`${this.authUrl}/login`, loginData).pipe(
       tap((response) => {
         if (response.status && response.data?.accessToken) {
-
           localStorage.setItem('accessToken', response.data.accessToken);
           localStorage.setItem('refreshToken', response.data.refreshToken);
           localStorage.setItem(
@@ -63,11 +61,12 @@ export class AuthService {
     );
   }
 
-  logout(): Observable<any>{
+  logout(): Observable<any> {
     console.log("User logging out...")
 
     return this.http.post<ApiResponse>(`${this.authUrl}/logout`, {}).pipe(
-      tap(()=>{
+      tap(() => {
+        console.log("User logged out successfully");
 
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -77,9 +76,11 @@ export class AuthService {
 
         this.router.navigate(['/']);
       }),
-      catchError((error: HttpErrorResponse)=>{
-        
-        if(error.status == 401 || error.status == 403 || error.status == 400){
+      catchError((error: HttpErrorResponse) => {
+        console.error(`Logout failed: ${error}`);
+
+        if (error.status === 401 || error.status === 403 || error.status === 400) {
+          console.error("Clearing local tokens due to failed logout/invalid token");
 
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
@@ -87,6 +88,12 @@ export class AuthService {
 
           this._isLoggedIn.next(false);
           this.router.navigate(['/']);
+
+          // Return an empty observable to complete the stream gracefully
+          return new Observable(observer => {
+            observer.next(null);
+            observer.complete();
+          });
         }
         return throwError(() => new Error(`Status: ${error.status}, Message: ${error.message || 'Unknown error'}`))
       })
@@ -102,35 +109,34 @@ export class AuthService {
   }
 
   // Get current user
- getCurrentUser(): any {
-  const token = localStorage.getItem('accessToken');
-  if (!token) return null;
+  getCurrentUser(): any {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return null;
 
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
 
-    const userId =
-      payload.sub ||
-      payload.nameid ||
-      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+      const userId =
+        payload.sub ||
+        payload.nameid ||
+        payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
 
-    return {
-      id: userId,
-      email:
-        payload.email ||
-        payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"],
-      roles:
-        payload.role ||
-        payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
-        []
-    };
+      return {
+        id: userId,
+        email:
+          payload.email ||
+          payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"],
+        roles:
+          payload.role ||
+          payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+          []
+      };
 
-  } catch {
-    return null;
+    } catch {
+      return null;
+    }
   }
-}
 
-///======= IS THIS NECESSARY? =======
   // Get user roles from token
   getCurrentUserRoles(): string[] {
     const user = this.getCurrentUser();
@@ -141,8 +147,8 @@ export class AuthService {
   hasRole(roleName: string): boolean {
     const roles = this.getCurrentUserRoles();
     // Check both exact match and case-insensitive
-    return roles.some(role => 
-      role === roleName || 
+    return roles.some(role =>
+      role === roleName ||
       role.toLowerCase() === roleName.toLowerCase()
     );
   }

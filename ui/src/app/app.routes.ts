@@ -32,18 +32,6 @@ export const routes: Routes = [
         (m) => m.LoginPageComponent
       ),
   },
-  {
-    path: 'home',
-    canActivate: [AuthGuard],
-    loadComponent: () =>
-      import('./Pages/home/home.component').then((m) => m.HomeComponent),
-  },
-  {
-    path: 'groups',
-    canActivate: [AuthGuard],
-    loadComponent: () =>
-      import('./Pages/group/group.component').then((m) => m.GroupsComponent),
-  },
 
   {
     path: 'groups/:groupId/ideas',

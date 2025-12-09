@@ -34,4 +34,12 @@ export class AnalyticsService {
     getPersonalStats(): Observable<ApiResponse> {
         return this.http.get<ApiResponse>(`${this.baseUrl}/personal-stats`);
     }
+
+    getDashboardStats(): Observable<ApiResponse> {
+        return this.http.get<ApiResponse>(`${this.baseUrl}/dashboard-stats`);
+    }
+
+    getRecentActivity(): Observable<ApiResponse> {
+        return this.http.get<ApiResponse>(`${this.baseUrl}/recent-activity`);
+    }
 }

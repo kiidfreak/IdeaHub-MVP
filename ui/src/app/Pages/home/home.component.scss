@@ -148,6 +148,67 @@
     .card-content {
         padding: 0;
     }
+
+    &.recent-activity {
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        .activity-list {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #eee;
+            overflow: hidden;
+        }
+
+        .activity-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+
+            &:last-child {
+                border-bottom: none;
+            }
+
+            .activity-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 4px;
+
+                .title {
+                    font-weight: 600;
+                    color: #2c3e50;
+                    font-size: 1.1rem;
+                }
+
+                .status {
+                    font-size: 0.8rem;
+                    padding: 4px 8px;
+                    border-radius: 12px;
+                    font-weight: 500;
+
+                    &.open {
+                        background: #e3f2fd;
+                        color: #1976d2;
+                    }
+
+                    &.closed {
+                        background: #e8f5e9;
+                        color: #388e3c;
+                    }
+                }
+            }
+
+            .activity-details {
+                display: flex;
+                gap: 16px;
+                font-size: 0.9rem;
+                color: #666;
+            }
+        }
+    }
 }
 
 .list-item {
