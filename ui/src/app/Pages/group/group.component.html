@@ -8,9 +8,8 @@
         <p class="page-subtitle">{{ subtitle }}</p>
       </div>
 
-      <button *ngIf="!showCreateForm && !isLoading && groups.length > 0"
-              class="create-group-header-btn"
-              (click)="toggleCreateForm()">
+      <button *ngIf="!showCreateForm && !isLoading && groups.length > 0" class="create-group-header-btn"
+        (click)="toggleCreateForm()">
         <span class="create-icon">+</span>
         Create Group
       </button>
@@ -40,15 +39,11 @@
 
     <!-- ✅ VIEW TOGGLE -->
     <div *ngIf="groups.length > 0" class="view-toggle">
-      <button class="toggle-btn"
-              [class.active]="viewMode === 'grid'"
-              (click)="viewMode = 'grid'">
+      <button class="toggle-btn" [class.active]="viewMode === 'grid'" (click)="viewMode = 'grid'">
         🔳 Grid
       </button>
 
-      <button class="toggle-btn"
-              [class.active]="viewMode === 'list'"
-              (click)="viewMode = 'list'">
+      <button class="toggle-btn" [class.active]="viewMode === 'list'" (click)="viewMode = 'list'">
         📄 List
       </button>
     </div>
@@ -65,40 +60,32 @@
             <div class="group-status">
               <span *ngIf="!group.isActive" class="status-badge inactive">Inactive</span>
               <span *ngIf="group.isDeleted" class="status-badge deleted">Deleted</span>
-            </div>
-          </div>
-
-          <div class="group-header-right">
-            <div class="group-join-section">
-
-              <!-- Member -->
-              <button *ngIf="group.isMember"
-                      class="view-ideas-button"
-                      (click)="onViewIdeas(group.id)">
-                💡 View Ideas
-              </button>
 
               <!-- Pending -->
-              <div *ngIf="!group.isMember && group.hasPendingRequest"
-                   class="pending-status">
+              <div *ngIf="!group.isMember && group.hasPendingRequest" class="pending-status">
                 ⏳ Pending Approval
               </div>
 
               <!-- Join -->
               <button *ngIf="!group.isMember && !group.hasPendingRequest && group.isActive && !group.isDeleted"
-                      class="join-button"
-                      (click)="onJoinGroup(group.id)">
+                class="join-button" [disabled]="isMemberOfAnyGroup"
+                [title]="isMemberOfAnyGroup ? 'You can only belong to one group at a time' : 'Join Group'"
+                [class.disabled]="isMemberOfAnyGroup" (click)="onJoinGroup(group.id)">
                 Join Group
               </button>
 
             </div>
 
             <!-- Delete -->
-            <button *ngIf="canConfigureGroup(group)"
-                    class="delete-group-btn"
-                    (click)="onDeleteGroup(group)"
-                    title="Delete Group">
+            <button *ngIf="canConfigureGroup(group)" class="delete-group-btn" (click)="onDeleteGroup(group)"
+              title="Delete Group">
               🗑️
+            </button>
+
+            <!-- Manage Requests -->
+            <button *ngIf="canConfigureGroup(group)" class="manage-requests-btn"
+              (click)="openPendingRequestsModal(group)" title="Manage Requests">
+              📩
             </button>
           </div>
         </div>
@@ -146,27 +133,20 @@
           </button>
 
           <!-- Ideas (Member) -->
-          <button *ngIf="group.isMember"
-                  class="action-button"
-                  (click)="onViewIdeas(group.id)">
+          <button *ngIf="group.isMember" class="action-button" (click)="onViewIdeas(group.id)">
             <span class="action-icon">💡</span>
             View Ideas
             <span *ngIf="group.ideaCount" class="count-badge">{{ group.ideaCount }}</span>
           </button>
 
           <!-- Ideas (Locked) -->
-          <button *ngIf="!group.isMember"
-                  class="action-button disabled"
-                  disabled
-                  title="Join group to view ideas">
+          <button *ngIf="!group.isMember" class="action-button disabled" disabled title="Join group to view ideas">
             <span class="action-icon">🔒</span>
             View Ideas
           </button>
 
           <!-- Configure -->
-          <button *ngIf="canConfigureGroup(group)"
-                  class="action-button configure"
-                  (click)="openConfigureModal(group)">
+          <button *ngIf="canConfigureGroup(group)" class="action-button configure" (click)="openConfigureModal(group)">
             <span class="action-icon">⚙️</span>
             Configure
           </button>
@@ -194,40 +174,31 @@
         <div class="list-right">
 
           <!-- Member -->
-          <button *ngIf="group.isMember"
-                  class="action-button"
-                  (click)="onViewIdeas(group.id)">
+          <button *ngIf="group.isMember" class="action-button" (click)="onViewIdeas(group.id)">
             <span class="action-icon">💡</span>
             Ideas
           </button>
 
           <!-- Locked -->
-          <button *ngIf="!group.isMember"
-                  class="action-button disabled"
-                  disabled
-                  title="Join group to view ideas">
+          <button *ngIf="!group.isMember" class="action-button disabled" disabled title="Join group to view ideas">
             <span class="action-icon">🔒</span>
             Ideas
           </button>
 
           <!-- Members -->
-          <button class="action-button"
-                  (click)="openMembersModal(group)">
+          <button class="action-button" (click)="openMembersModal(group)">
             <span class="action-icon">👥</span>
             Members
           </button>
 
           <!-- Details -->
-          <button class="action-button"
-                  (click)="openDetailsModal(group)">
+          <button class="action-button" (click)="openDetailsModal(group)">
             <span class="action-icon">📋</span>
             Details
           </button>
 
           <!-- Configure -->
-          <button *ngIf="canConfigureGroup(group)"
-                  class="action-button configure"
-                  (click)="openConfigureModal(group)">
+          <button *ngIf="canConfigureGroup(group)" class="action-button configure" (click)="openConfigureModal(group)">
             <span class="action-icon">⚙️</span>
             Config
           </button>
@@ -252,35 +223,22 @@
 
         <div class="form-group">
           <label for="groupName">Group Name</label>
-          <input id="groupName"
-                 type="text"
-                 formControlName="name"
-                 placeholder="Enter group name"
-                 class="form-control"
-                 [class.error]="name?.invalid && name?.touched">
+          <input id="groupName" type="text" formControlName="name" placeholder="Enter group name" class="form-control"
+            [class.error]="name?.invalid && name?.touched">
         </div>
 
         <div class="form-group">
           <label for="groupDescription">Description</label>
-          <textarea id="groupDescription"
-                    formControlName="description"
-                    placeholder="Describe what your group is about"
-                    rows="3"
-                    class="form-control"
-                    [class.error]="description?.invalid && description?.touched"></textarea>
+          <textarea id="groupDescription" formControlName="description" placeholder="Describe what your group is about"
+            rows="3" class="form-control" [class.error]="description?.invalid && description?.touched"></textarea>
         </div>
 
         <div class="modal-actions">
-          <button type="button"
-                  class="btn btn-secondary"
-                  (click)="onCancelCreate()"
-                  [disabled]="isSubmitting">
+          <button type="button" class="btn btn-secondary" (click)="onCancelCreate()" [disabled]="isSubmitting">
             Cancel
           </button>
 
-          <button type="submit"
-                  class="btn btn-primary"
-                  [disabled]="createGroupForm.invalid || isSubmitting">
+          <button type="submit" class="btn btn-primary" [disabled]="createGroupForm.invalid || isSubmitting">
             {{ isSubmitting ? 'Creating...' : 'Create Group' }}
           </button>
         </div>

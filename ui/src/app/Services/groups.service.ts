@@ -8,7 +8,7 @@ import { ApiResponse } from '../Interfaces/Groups/groups-interfaces';
 })
 export class GroupsService {
   private apiUrl = 'http://localhost:5065/api/group';
-  
+
   constructor(private http: HttpClient) { }
 
   // Helper method to convert backend response to our interface
@@ -57,7 +57,7 @@ export class GroupsService {
     const params = new HttpParams()
       .set('groupId', groupId)
       .set('requestUserId', requestUserId);
-    
+
     return this.http.post<any>(`${this.apiUrl}/accept-request`, {}, { params }).pipe(
       map(response => this.convertResponse<any>(response))
     );
@@ -66,6 +66,40 @@ export class GroupsService {
   // DELETE /api/group/{groupId}
   deleteGroup(groupId: string): Observable<ApiResponse<any>> {
     return this.http.delete<any>(`${this.apiUrl}/${groupId}`).pipe(
+      map(response => this.convertResponse<any>(response))
+    );
+  }
+
+  // POST /api/group/leave-group?groupId={guid}
+  leaveGroup(groupId: string): Observable<ApiResponse<any>> {
+    const params = new HttpParams().set('groupId', groupId);
+    return this.http.post<any>(`${this.apiUrl}/leave-group`, {}, { params }).pipe(
+      map(response => this.convertResponse<any>(response))
+    );
+  }
+
+  // GET /api/group/view-requests?groupId={guid}
+  viewRequests(groupId: string): Observable<ApiResponse<any>> {
+    const params = new HttpParams().set('groupId', groupId);
+    return this.http.get<any>(`${this.apiUrl}/view-requests`, { params }).pipe(
+      map(response => this.convertResponse<any>(response))
+    );
+  }
+
+  // POST /api/group/reject-request?groupId={guid}&requestUserId={userId}
+  rejectRequest(groupId: string, requestUserId: string): Observable<ApiResponse<any>> {
+    const params = new HttpParams()
+      .set('groupId', groupId)
+      .set('requestUserId', requestUserId);
+
+    return this.http.post<any>(`${this.apiUrl}/reject-request`, {}, { params }).pipe(
+      map(response => this.convertResponse<any>(response))
+    );
+  }
+
+  // PUT /api/group/{groupId}
+  updateGroup(groupId: string, groupData: any): Observable<ApiResponse<any>> {
+    return this.http.put<any>(`${this.apiUrl}/${groupId}`, groupData).pipe(
       map(response => this.convertResponse<any>(response))
     );
   }

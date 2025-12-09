@@ -1,0 +1,25 @@
+<div class="modal-header">
+    <h3>Pending Requests for {{ group.name }}</h3>
+    <button class="close-btn" (click)="close()">×</button>
+</div>
+
+<div class="modal-body">
+    <div *ngIf="isLoading" class="loading">Loading requests...</div>
+
+    <div *ngIf="!isLoading && requests.length === 0" class="empty-state">
+        No pending requests.
+    </div>
+
+    <div *ngIf="!isLoading && requests.length > 0" class="requests-list">
+        <div *ngFor="let userId of requests" class="request-item">
+            <div class="user-info">
+                <span class="label">User Requesting:</span>
+                <span class="user-id">{{ userId }}</span>
+            </div>
+            <div class="actions">
+                <button class="accept-btn" (click)="accept(userId)">✅ Accept</button>
+                <button class="reject-btn" (click)="reject(userId)">❌ Reject</button>
+            </div>
+        </div>
+    </div>
+</div>

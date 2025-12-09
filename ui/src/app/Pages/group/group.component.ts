@@ -9,6 +9,9 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { GroupDetailsModalComponent } from '../../Components/modals/group-details-modal/group-details-modal.component';
 import { GroupMembersModalComponent } from '../../Components/modals/group-members-modal/group-members-modal.component';
 import { DeleteGroupModalComponent } from '../../Components/modals/delete-group-modal/delete-group-modal.component';
+import { GroupRequestsModalComponent } from '../../Components/modals/group-requests-modal/group-requests-modal.component';
+import { GroupConfigurationModalComponent } from '../../Components/modals/group-configuration-modal/group-configuration-modal.component';
+import { CreateIdeaModalComponent } from '../../Components/modals/create-idea-modal/create-idea-modal.component';
 
 @Component({
   selector: 'app-groups',
@@ -22,25 +25,28 @@ import { DeleteGroupModalComponent } from '../../Components/modals/delete-group-
 })
 export class GroupsComponent implements OnInit {
   viewMode: 'list' | 'grid' = 'list';
-  
+
   // Group data
   groups: any[] = [];
-  
+
   // Page content
   title = 'Groups';
   subtitle = 'Explore and join groups to collaborate on ideas and projects.';
-  
+
   // Form state
   showCreateForm = false;
   createGroupForm: FormGroup;
   isSubmitting = false;
   isLoading: boolean = true;
-  
+
   // Current user ID
   currentUserId: string | null = null;
-  
+
   // Store pending requests for each group
   pendingRequests: Map<string, boolean> = new Map();
+
+  // Track if user belongs to any group
+  isMemberOfAnyGroup: boolean = false;
 
   constructor(
     private groupsService: GroupsService,
@@ -54,7 +60,7 @@ export class GroupsComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void {  // ====== DOES NOT GET THE USERID========
+  ngOnInit(): void {
     // Get current user ID first
     this.currentUserId = this.authService.getCurrentUserId();
     console.log('Current User ID on init:', this.currentUserId);
@@ -68,20 +74,11 @@ export class GroupsComponent implements OnInit {
     this.groupsService.getGroups().subscribe({
       next: (response: any) => {
         this.isLoading = false;
-        
+
         console.log('DEBUG - Full API response:', response);
-        
+
         if (response.success && response.data) {
           this.groups = response.data.map((group: any) => {
-            console.log('Group:', {
-              id: group.id,
-              name: group.name,
-              isMember: group.isMember,
-              hasPendingRequest: group.hasPendingRequest,
-              createdByUserId: group.createdByUserId,
-              isCreator: group.createdByUserId === this.currentUserId
-            });
-            
             return {
               ...group,
               id: group.id,
@@ -101,12 +98,11 @@ export class GroupsComponent implements OnInit {
               }
             };
           });
-          
-          console.log('Final groups state:');
-          this.groups.forEach((group, i) => {
-            console.log(`${i + 1}. ${group.name}: creator=${group.createdByUserId}, currentUser=${this.currentUserId}, isCreator=${this.isGroupCreator(group)}`);
-          });
-          
+
+          // Check if user is member of any group
+          this.isMemberOfAnyGroup = this.groups.some(g => g.isMember);
+          console.log('Is member of any group:', this.isMemberOfAnyGroup);
+
         } else {
           console.error('Failed to load groups:', response.message);
           this.groups = [];
@@ -141,34 +137,66 @@ export class GroupsComponent implements OnInit {
   }
 
   openConfigureModal(group: any): void {
-    alert(`Configure group: ${group.name}\n\nGroup Settings:\n- Edit group info\n- Manage members\n- Change privacy settings\n- Delete group\n\nFeature coming soon!`);
+    const dialogRef = this.dialog.open(GroupConfigurationModalComponent, {
+      width: '500px',
+      maxHeight: '90vh',
+      data: { group: group },
+      panelClass: 'custom-modal'
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadGroups();
+      }
+    });
   }
 
   openPendingRequestsModal(group: any): void {
-    alert(`Pending requests for ${group.name}:\n\nFeature coming soon!`);
+    this.dialog.open(GroupRequestsModalComponent, {
+      width: '500px',
+      maxHeight: '80vh',
+      data: { group: group },
+      panelClass: 'custom-modal'
+    });
+  }
+
+  onAddIdea(group: any): void {
+    const dialogRef = this.dialog.open(CreateIdeaModalComponent, {
+      width: '600px',
+      maxHeight: '90vh',
+      data: { groupId: group.id },
+      panelClass: 'custom-modal'
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        alert('Idea created successfully!');
+        this.loadGroups(); // Reload to update idea count
+      }
+    });
   }
 
   // ===== GROUP JOIN & VIEW IDEAS METHODS =====
 
   onViewIdeas(groupId: string): void {
     const group = this.groups.find(g => g.id === groupId);
-    
+
     if (!group?.isMember) {
       alert('You must be a member of this group to view ideas.');
       return;
     }
-    
+
     alert(`Viewing ideas for group: ${group.name}\n\nThis feature is coming soon!\n\nYou will be able to:\n- View all ideas in this group\n- Submit new ideas\n- Vote and comment on ideas`);
   }
 
   onJoinGroup(groupId: string): void {
     const group = this.groups.find(g => g.id === groupId);
-    
+
     if (group?.isMember) {
-      alert('You are already a member of this group!'); // THIS WON'T BE TRIGGERED REALLY SINCE THE JOIN BUTTON ONLY SHOWS WHEN YOU ARE NOT A MEMBER
+      alert('You are already a member of this group!');
       return;
     }
-    
+
     if (group?.hasPendingRequest) {
       alert('You already have a pending request for this group!');
       return;
@@ -195,6 +223,27 @@ export class GroupsComponent implements OnInit {
       error: (error: any) => {
         console.error('Error joining group:', error);
         alert('Failed to send join request. Please try again.');
+      }
+    });
+  }
+
+  onLeaveGroup(groupId: string): void {
+    if (!confirm('Are you sure you want to leave this group?')) {
+      return;
+    }
+
+    this.groupsService.leaveGroup(groupId).subscribe({
+      next: (response: any) => {
+        if (response.success || response.status) {
+          alert('You have left the group.');
+          this.loadGroups();
+        } else {
+          alert(response.message || 'Failed to leave group.');
+        }
+      },
+      error: (error: any) => {
+        console.error('Error leaving group:', error);
+        alert('Failed to leave group. Please try again.');
       }
     });
   }
@@ -227,9 +276,9 @@ export class GroupsComponent implements OnInit {
           this.createGroupForm.reset();
           this.showCreateForm = false;
         } else {
-          if (response.message?.includes('authenticated') || 
-              response.message?.includes('User ID') || 
-              response.message?.includes('login')) {
+          if (response.message?.includes('authenticated') ||
+            response.message?.includes('User ID') ||
+            response.message?.includes('login')) {
             alert('Please login to create a group.');
           } else {
             alert(response.message || 'Failed to create group.');
@@ -239,7 +288,7 @@ export class GroupsComponent implements OnInit {
       error: (error: any) => {
         this.isSubmitting = false;
         console.error('Error creating group:', error);
-        
+
         if (error.status === 401) {
           alert('Please login to create a group.');
         } else if (error.status === 400) {
@@ -256,7 +305,6 @@ export class GroupsComponent implements OnInit {
     this.createGroupForm.reset();
   }
 
-  // NOT WORKING - FIX THIS
   // ===== GROUP DELETION METHODS =====
 
   isDeleting: boolean = false;
@@ -276,25 +324,25 @@ export class GroupsComponent implements OnInit {
 
   deleteGroup(groupId: string): void {
     this.isDeleting = true;
-    
+
     this.groupsService.deleteGroup(groupId).subscribe({
       next: (response: any) => {
         this.isDeleting = false;
-        
+
         if (response.success) {
           alert('Group deleted successfully!');
           this.groups = this.groups.filter(group => group.id !== groupId);
-          
+
           if (this.groups.length === 0) {
             this.title = 'No Groups';
             this.subtitle = 'All groups have been deleted.';
           }
         } else {
           alert(response.message || 'Failed to delete group');
-          
-          if (response.message?.includes('permission') || 
-              response.message?.includes('admin') ||
-              response.message?.includes('not allowed')) {
+
+          if (response.message?.includes('permission') ||
+            response.message?.includes('admin') ||
+            response.message?.includes('not allowed')) {
             alert('Only group admin can delete groups.');
           }
         }
@@ -302,7 +350,7 @@ export class GroupsComponent implements OnInit {
       error: (error: any) => {
         this.isDeleting = false;
         console.error('Error deleting group:', error);
-        
+
         if (error.status === 401) {
           alert('Please login to delete groups.');
         } else if (error.status === 403) {
@@ -322,10 +370,12 @@ export class GroupsComponent implements OnInit {
     if (!date) return 'Unknown date';
     try {
       const d = new Date(date);
-      return d.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     } catch {
       return 'Invalid date';
@@ -345,13 +395,11 @@ export class GroupsComponent implements OnInit {
 
   isGroupCreator(group: any): boolean {
     if (!group || !group.createdByUserId || !this.currentUserId) return false;
-    
+
     // Normalize both IDs (trim and lowercase)
     const groupCreatorId = group.createdByUserId.toString().trim().toLowerCase();
     const currentId = this.currentUserId.toString().trim().toLowerCase();
-    
-    console.log(`Comparing IDs: "${groupCreatorId}" === "${currentId}" = ${groupCreatorId === currentId}`);
-    
+
     return groupCreatorId === currentId;
   }
 
@@ -367,11 +415,11 @@ export class GroupsComponent implements OnInit {
 
   // ===== FORM GETTER METHODS =====
 
-  get name() { 
-    return this.createGroupForm.get('name'); 
+  get name() {
+    return this.createGroupForm.get('name');
   }
-  
-  get description() { 
-    return this.createGroupForm.get('description'); 
+
+  get description() {
+    return this.createGroupForm.get('description');
   }
 }

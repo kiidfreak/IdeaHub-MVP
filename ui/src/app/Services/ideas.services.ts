@@ -33,7 +33,7 @@ export class IdeasService {
     const params = new HttpParams()
       .set('groupId', groupId)
       .set('ideaId', ideaId);
-    
+
     return this.http.get<any>(`${this.apiUrl}/open-idea`, { params }).pipe(
       map(response => this.convertResponse<Idea>(response))
     );
@@ -69,7 +69,7 @@ export class IdeasService {
     const params = new HttpParams()
       .set('groupId', request.groupId)
       .set('ideaId', request.ideaId);
-    
+
     return this.http.post<any>(`${this.apiUrl}/idea/promote-idea`, {}, { params }).pipe(
       map(response => this.convertResponse<any>(response))
     );
@@ -80,9 +80,16 @@ export class IdeasService {
     const params = new HttpParams()
       .set('groupId', request.groupId)
       .set('ideaId', request.ideaId);
-    
+
     return this.http.post<any>(`${this.apiUrl}/vote-idea`, {}, { params }).pipe(
       map(response => this.convertResponse<any>(response))
+    );
+  }
+
+  // GET user's ideas
+  getMyIdeas(): Observable<ApiResponse<Idea[]>> {
+    return this.http.get<any>(`${this.apiUrl}/my-ideas`).pipe(
+      map(response => this.convertResponse<Idea[]>(response))
     );
   }
 }

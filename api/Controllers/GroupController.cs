@@ -41,12 +41,24 @@ public class GroupController : ControllerBase
             _logger.LogError("Group creation failed. User ID not found.");
             return BadRequest(ApiResponse.Fail("Group creation failed. User ID Not Found"));
         }
+
         var user = await _userManager.FindByIdAsync(userId);
         if (user is null)
         {
-            _logger.LogError("Group creation failed. User not found");
-            return BadRequest(ApiResponse.Fail("Group creation failed. User Not Found"));
+            _logger.LogError("User not found");
+            return NotFound(ApiResponse.Fail("User not found"));
         }
+
+        // Check if user is already a member of any group
+        var existingGroupMembership = await _context.UserGroups
+            .AnyAsync(ug => ug.UserId == userId);
+
+        if (existingGroupMembership)
+        {
+            _logger.LogWarning("User {userEmail} cannot create a group because they are already a member of another group.", user.Email);
+            return BadRequest(ApiResponse.Fail("You are already a member of a group. You must leave your current group before creating a new one."));
+        }
+
         //Create the group
         var group = new Group
         {
@@ -122,123 +134,152 @@ public class GroupController : ControllerBase
         return Ok(ApiResponse.Ok($"{group.Name} has been deleted by {userEmail}"));
     }
 
+    //Update Group
+    [Authorize(Policy = "GroupAdminOnly")]
+    [HttpPut("{groupId}")]
+    public async Task<IActionResult> UpdateGroup(int groupId, [FromBody] GroupDto groupDto)
+    {
+        //Fetch user info
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized(ApiResponse.Fail("User not authenticated"));
+        }
+
+        //Find the group
+        var group = await _context.Groups.FindAsync(groupId);
+        if (group is null)
+        {
+            return NotFound(ApiResponse.Fail("Group not found"));
+        }
+
+        // Update properties
+        group.Name = groupDto.Name;
+        group.Description = groupDto.Description;
+
+        _context.Groups.Update(group);
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse.Ok("Group updated successfully", group));
+    }
 
     //Show Groups
     [HttpGet("view-groups")]
-public async Task<IActionResult> ViewGroups()
-{
-    // Get current user ID from JWT token
-    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-    
-    if (string.IsNullOrWhiteSpace(currentUserId))
+    public async Task<IActionResult> ViewGroups()
     {
-        _logger.LogError("User not authenticated");
-        return Unauthorized(ApiResponse.Fail("User not authenticated"));
-    }
-
-    // Fetch groups with membership status for current user
-    var groups = await _context.Groups
-        .Select(g => new 
+        // Get current user ID from JWT token
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        if (string.IsNullOrWhiteSpace(currentUserId))
         {
-            g.Id,
-            g.Name,
-            g.Description,
-            g.IsActive,
-            g.CreatedAt,
-            g.CreatedByUserId,
-            CreatedByUser = new 
+            _logger.LogError("User not authenticated");
+            return Unauthorized(ApiResponse.Fail("User not authenticated"));
+        }
+
+        // Fetch groups with membership status for current user
+        var groups = await _context.Groups
+            .Select(g => new 
             {
-                g.CreatedByUser.DisplayName,
-                g.CreatedByUser.Email
-            },
-            
-            // CRITICAL: Check if current user is a member
-            IsMember = _context.UserGroups
-                .Any(ug => ug.GroupId == g.Id && ug.UserId == currentUserId),
-            
-            // Check if user has pending request
-            HasPendingRequest = _context.GroupMembershipRequests
-                .Any(gmr => gmr.GroupId == g.Id && 
-                           gmr.UserId == currentUserId && 
-                           gmr.Status == Status.Pending),
-            
-            // Get member count
-            MemberCount = _context.UserGroups.Count(ug => ug.GroupId == g.Id),
-            
-            // Get idea count (if you have Ideas table)
-            IdeaCount = _context.Ideas.Count(i => i.GroupId == g.Id)
-        })
-        .ToListAsync();
+                g.Id,
+                g.Name,
+                g.Description,
+                g.IsActive,
+                g.CreatedAt,
+                g.CreatedByUserId,
+                CreatedByUser = new 
+                {
+                    g.CreatedByUser.DisplayName,
+                    g.CreatedByUser.Email
+                },
+                
+                // CRITICAL: Check if current user is a member
+                IsMember = _context.UserGroups
+                    .Any(ug => ug.GroupId == g.Id && ug.UserId == currentUserId),
+                
+                // Check if user has pending request
+                HasPendingRequest = _context.GroupMembershipRequests
+                    .Any(gmr => gmr.GroupId == g.Id && 
+                               gmr.UserId == currentUserId && 
+                               gmr.Status == Status.Pending),
+                
+                // Get member count
+                MemberCount = _context.UserGroups.Count(ug => ug.GroupId == g.Id),
+                
+                // Get idea count (if you have Ideas table)
+                IdeaCount = _context.Ideas.Count(i => i.GroupId == g.Id)
+            })
+            .ToListAsync();
 
-    if (groups == null || !groups.Any())
-    {
-        _logger.LogWarning("No groups found");
-        return Ok(ApiResponse.Ok("No groups found", new List<object>()));
+        if (groups == null || !groups.Any())
+        {
+            _logger.LogWarning("No groups found");
+            return Ok(ApiResponse.Ok("No groups found", new List<object>()));
+        }
+
+        _logger.LogInformation("Retrieved {count} joined groups for user {userId}", groups.Count, currentUserId);
+        return Ok(ApiResponse.Ok("Groups retrieved successfully", groups));
     }
-
-    _logger.LogInformation("Retrieved {count} joined groups for user {userId}", groups.Count, currentUserId);
-    return Ok(ApiResponse.Ok("Groups retrieved successfully", groups));
-}
 
     //Join Group
     [HttpPost("join-group")]
-public async Task<IActionResult> JoinGroup(int groupId)
-{
-    // Get user info
-    var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? "Email not found";
-    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-    if (string.IsNullOrWhiteSpace(userId))
+    public async Task<IActionResult> JoinGroup(int groupId)
     {
-        _logger.LogError("User not authenticated to join group");
-        return Unauthorized(ApiResponse.Fail("User not authenticated to join group"));
+        // Get user info
+        var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? "Email not found";
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            _logger.LogError("User not authenticated to join group");
+            return Unauthorized(ApiResponse.Fail("User not authenticated to join group"));
+        }
+
+        // Get group info
+        var group = await _context.Groups.FindAsync(groupId);
+        if (group is null)
+        {
+            _logger.LogError("Group not found");
+            return NotFound(ApiResponse.Fail("Group not found"));
+        }
+        var groupName = group.Name;
+
+        // Check if user is ALREADY A MEMBER (in UserGroups)
+        var isAlreadyMember = await _context.UserGroups
+            .AnyAsync(ug => ug.GroupId == groupId && ug.UserId == userId);
+        
+        if (isAlreadyMember)
+        {
+            _logger.LogWarning("User {userEmail} is already a member of group {GroupName}", userEmail, groupName);
+            return BadRequest(ApiResponse.Fail("You are already a member of this group"));
+        }
+
+        // Check if user already has a PENDING request
+        var hasPendingRequest = await _context.GroupMembershipRequests
+            .AnyAsync(gmr => gmr.GroupId == groupId && 
+                           gmr.UserId == userId && 
+                           gmr.Status == Status.Pending);
+        
+        if (hasPendingRequest)
+        {
+            _logger.LogWarning("User {userEmail} already has a pending request for group {GroupName}", userEmail, groupName);
+            return BadRequest(ApiResponse.Fail("You already have a pending request to join this group"));
+        }
+
+        // Create a PENDING request (not immediate membership)
+        var request = new GroupMembershipRequest
+        {
+            UserId = userId,
+            GroupId = groupId,
+            Status = Status.Pending,
+            RequestedAt = DateTime.UtcNow
+        };
+
+        _context.GroupMembershipRequests.Add(request);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("User {userEmail} requested to join group {groupName} (pending approval)", userEmail, groupName);
+        return Ok(ApiResponse.Ok($"Join request sent to group {groupName}. Waiting for admin approval."));
     }
-
-    // Get group info
-    var group = await _context.Groups.FindAsync(groupId);
-    if (group is null)
-    {
-        _logger.LogError("Group not found for user to join");
-        return NotFound(ApiResponse.Fail("Group doesn't exist"));
-    }
-    var groupName = group.Name;
-
-    // Check if user is ALREADY A MEMBER (in UserGroups)
-    var isAlreadyMember = await _context.UserGroups
-        .AnyAsync(ug => ug.GroupId == groupId && ug.UserId == userId);
-    
-    if (isAlreadyMember)
-    {
-        _logger.LogWarning("User {userEmail} is already a member of group {GroupName}", userEmail, groupName);
-        return BadRequest(ApiResponse.Fail("You are already a member of this group"));
-    }
-
-    // Check if user already has a PENDING request
-    var hasPendingRequest = await _context.GroupMembershipRequests
-        .AnyAsync(gmr => gmr.GroupId == groupId && 
-                        gmr.UserId == userId && 
-                        gmr.Status == Status.Pending);
-    
-    if (hasPendingRequest)
-    {
-        _logger.LogWarning("User {userEmail} already has a pending request for group {GroupName}", userEmail, groupName);
-        return BadRequest(ApiResponse.Fail("You already have a pending request to join this group"));
-    }
-
-    // Create a PENDING request (not immediate membership)
-    var request = new GroupMembershipRequest
-    {
-        UserId = userId,
-        GroupId = groupId,
-        Status = Status.Pending,
-        RequestedAt = DateTime.UtcNow
-    };
-
-    _context.GroupMembershipRequests.Add(request);
-    await _context.SaveChangesAsync();
-
-    _logger.LogInformation("User {userEmail} requested to join group {groupName} (pending approval)", userEmail, groupName);
-    return Ok(ApiResponse.Ok($"Join request sent to group {groupName}. Waiting for admin approval."));
-}
 
     //Leave Group
     [HttpPost("leave-group")]
@@ -263,19 +304,19 @@ public async Task<IActionResult> JoinGroup(int groupId)
         var groupName = group.Name;
 
         //Verify user is in group
-        if (!_context.GroupMembershipRequests.Any(gmr => gmr.UserId == userId && gmr.GroupId == groupId))
+        if (!_context.UserGroups.Any(ug => ug.UserId == userId && ug.GroupId == groupId))
         {
             return BadRequest(ApiResponse.Fail("You can't leave a group you're not a part of"));
         }
 
         //Remove them and save the new changes
-        var request = await _context.GroupMembershipRequests.FirstOrDefaultAsync(gmr => gmr.UserId == userId && gmr.GroupId == groupId);
-        if (request is null)
+        var userGroup = await _context.UserGroups.FirstOrDefaultAsync(ug => ug.UserId == userId && ug.GroupId == groupId);
+        if (userGroup is null)
         {
-            _logger.LogWarning("Group Membership Request doesn't exist");
+            _logger.LogWarning("UserGroup entry doesn't exist");
             return BadRequest(ApiResponse.Fail("Group membership doesn't exist"));
         }
-        _context.GroupMembershipRequests.Remove(request);
+        _context.UserGroups.Remove(userGroup);
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("User {userEmail} has left group {groupName}", userEmail, groupName);
@@ -358,20 +399,21 @@ public async Task<IActionResult> JoinGroup(int groupId)
         return Ok(ApiResponse.Ok($"{pendingRequests.Count()} Pending requests found", req));
     }
 
-    //Accept user's requests
+    //Accept Request
     [Authorize(Policy = "GroupAdminOnly")]
     [HttpPost("accept-request")]
-    public async Task<IActionResult> AcceptRequest(int groupId, string requestUserId)
+    public async Task<IActionResult> AcceptRequest(string requestUserId, int groupId)
     {
-        //get group admin's id
-        var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(adminId))
+        //Fetch user
+        var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? "User's email not found";
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
         {
-            _logger.LogError("Can't accept the request. User ID is null");
-            return Unauthorized(ApiResponse.Fail("User ID not found"));
+            _logger.LogError("User Id is null and cant accept requests");
+            return NotFound(ApiResponse.Fail("User ID is null"));
         }
 
-        //Find group
+        //Fetch group
         var group = await _context.Groups.FindAsync(groupId);
         if (group is null)
         {
@@ -379,31 +421,20 @@ public async Task<IActionResult> JoinGroup(int groupId)
             return NotFound(ApiResponse.Fail("Group is null"));
         }
 
-        //Validate group admin
-        var groupAdmin = group.CreatedByUserId;
-        if (adminId != groupAdmin)
-        {
-            _logger.LogInformation("User is not group admin");
-            return BadRequest(ApiResponse.Fail("User is not group admin"));
-        }
-
-        //Fetch pending requests from a specific user
+        //Fetch request
         var userRequest = await _context.GroupMembershipRequests
-            .FirstOrDefaultAsync(gmr =>
-                gmr.GroupId == groupId
-                && gmr.UserId == requestUserId
-                && gmr.Status.ToString() == "Pending");
+            .FirstOrDefaultAsync(gmr => gmr.UserId == requestUserId && gmr.GroupId == groupId && gmr.Status == Status.Pending);
 
         if (userRequest is null)
         {
-            _logger.LogError("No pending user requests found");
-            return NotFound(ApiResponse.Fail("No pending user requests found"));
+            _logger.LogError("Request not found");
+            return NotFound(ApiResponse.Fail("Request not found"));
         }
 
-        //Accept the request
+        // Accept the request
         userRequest.Status = Status.Approved;
 
-        //check if user is already in group
+        // check if user is already in group
         var isAMember = await _context.UserGroups
             .AnyAsync(ug =>
                 ug.GroupId == groupId
@@ -416,29 +447,39 @@ public async Task<IActionResult> JoinGroup(int groupId)
             return BadRequest(ApiResponse.Fail("User is already a member of the group"));
         }
 
-        //Add user to group and save
+        // Check if user is a member of ANY other group
+        var isMemberOfAnyGroup = await _context.UserGroups
+            .AnyAsync(ug => ug.UserId == requestUserId);
+
+        if (isMemberOfAnyGroup)
+        {
+            _logger.LogWarning("User {requestUserId} is already a member of another group", requestUserId);
+            return BadRequest(ApiResponse.Fail("User is already a member of another group. They must leave their current group first."));
+        }
+
+        // Add user to group and save
         _context.UserGroups.Add(new UserGroup { UserId = requestUserId, GroupId = groupId });
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("User {userEmail} accepted to group: {groupName}",
-            User.FindFirstValue(ClaimTypes.Email) ?? "Email not found", group.Name);
-        return Ok(ApiResponse.Ok("User accepted to group"));
+        _logger.LogInformation("User {requestUserId} has been accepted into group {groupName}", requestUserId, group.Name);
+        return Ok(ApiResponse.Ok($"User {requestUserId} has been accepted into group {group.Name}"));
     }
 
-    //Reject user's requests
+    //Reject Request
     [Authorize(Policy = "GroupAdminOnly")]
     [HttpPost("reject-request")]
-    public async Task<IActionResult> RejectRequest(int groupId, string requestUserId)
+    public async Task<IActionResult> RejectRequest(string requestUserId, int groupId)
     {
-        //get group admin's id
-        var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(adminId))
+        //Fetch user
+        var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? "User's email not found";
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
         {
-            _logger.LogError("Can't accept the request. User ID is null");
-            return Unauthorized(ApiResponse.Fail("User ID not found"));
+            _logger.LogError("User Id is null and cant accept requests");
+            return NotFound(ApiResponse.Fail("User ID is null"));
         }
 
-        //Find group
+        //Fetch group
         var group = await _context.Groups.FindAsync(groupId);
         if (group is null)
         {
@@ -446,63 +487,21 @@ public async Task<IActionResult> JoinGroup(int groupId)
             return NotFound(ApiResponse.Fail("Group is null"));
         }
 
-        //Validate group admin
-        var groupAdmin = group.CreatedByUserId;
-        if (adminId != groupAdmin)
-        {
-            _logger.LogInformation("User is not group admin");
-            return BadRequest(ApiResponse.Fail("User is not group admin"));
-        }
-
-        //Fetch pending requests from a specific user
+        //Fetch request
         var userRequest = await _context.GroupMembershipRequests
-            .FirstOrDefaultAsync(gmr =>
-                gmr.GroupId == groupId
-                && gmr.UserId == requestUserId
-                && gmr.Status.ToString() == "Pending");
+            .FirstOrDefaultAsync(gmr => gmr.UserId == requestUserId && gmr.GroupId == groupId && gmr.Status == Status.Pending);
 
         if (userRequest is null)
         {
-            _logger.LogError("No pending user requests found");
-            return NotFound(ApiResponse.Fail("No pending user requests found"));
+            _logger.LogError("Request not found");
+            return NotFound(ApiResponse.Fail("Request not found"));
         }
 
-        //Reject the request
+        // Reject the request
         userRequest.Status = Status.Rejected;
-
         await _context.SaveChangesAsync();
 
-        _logger.LogError("User {userEmail} request rejected from group: {groupName}",
-            User.FindFirstValue(ClaimTypes.Email) ?? "Email not found", group.Name);
-        return Ok(ApiResponse.Ok("User request rejected"));
-    }
-
-    //Get members of group
-    [HttpGet("get-members")]
-    public async Task<IActionResult> GetMembers(int groupId)
-    {
-        var group = await _context.Groups.FirstOrDefaultAsync(g => g.Id == groupId);
-        if (group is null)
-        {
-            _logger.LogError("Get Members: Group with id {groupId} not found", groupId);
-            return NotFound(ApiResponse.Fail("Group not found"));
-        }
-
-        //return members
-        var users = _context.UserGroups.Include(ug => ug.User).Where(g => g.GroupId == groupId).ToList();
-        if (users.Count == 0)
-        {
-            _logger.LogWarning("Get Members: Group {groupName} has no members", group.Name);
-            return Ok(ApiResponse.Fail("Group has no members"));
-        }
-
-        var membersList = users.Select(ug => new
-        {
-            UserName = ug.User?.DisplayName,
-            Email = ug.User?.Email,
-        }).ToList();
-
-        _logger.LogInformation("{memberCount} members found", membersList.Count);
-        return Ok(ApiResponse.Ok($"{membersList.Count} members found", membersList));
+        _logger.LogInformation("User {requestUserId} has been rejected from group {groupName}", requestUserId, group.Name);
+        return Ok(ApiResponse.Ok($"User {requestUserId} has been rejected from group {group.Name}"));
     }
 }
