@@ -13,14 +13,12 @@ import { Router } from '@angular/router';
 export class AuthService {
   router = inject(Router);
 
-  private readonly authUrl = 'http://localhost:5095/api/auth';
+  private readonly authUrl = 'http://localhost:5065/api/auth';
 
   private _isLoggedIn = new BehaviorSubject<boolean>(false);
   isLoggedIn$: Observable<boolean> = this._isLoggedIn.asObservable();
 
   constructor(private http: HttpClient) {
-    //Without this, reloading the page resets _isLoggedIn to false 
-    //despite the user being logged in
     const token = localStorage.getItem('accessToken');
     this._isLoggedIn.next(!!token);
   }
@@ -42,15 +40,9 @@ export class AuthService {
   }
 
   login(loginData: Login): Observable<any> {
-    console.log(`${loginData.email} is logging in...`);
-
     return this.http.post<ApiResponse>(`${this.authUrl}/login`, loginData).pipe(
       tap((response) => {
-        //If status is true i.e. login was successful,store the tokens
-        //and change _isLoggedIn behaviorSubject to true
-        if (response.success && response.data?.accessToken) {
-          console.log('Login successful: ', response);
-
+        if (response.status && response.data?.accessToken) {
           localStorage.setItem('accessToken', response.data.accessToken);
           localStorage.setItem('refreshToken', response.data.refreshToken);
           localStorage.setItem(
@@ -60,12 +52,10 @@ export class AuthService {
 
           this._isLoggedIn.next(true);
         } else {
-          console.error('Login failed: ', response.message);
           throw new Error(response.message || 'Login failed');
         }
       }),
       catchError((e) => {
-        console.error(`Login failed: ${e.message}`);
         throw new Error(`Login failed: ${e.message}`);
       })
     );
@@ -78,21 +68,18 @@ export class AuthService {
       tap(() => {
         console.log("User logged out successfully");
 
-        //Delete access token, refresh token and refresh token expiry
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('refreshTokenExpiry');
 
-        //change _isLogged in state to false
         this._isLoggedIn.next(false);
 
-        //Redirect user to landing page
         this.router.navigate(['/']);
       }),
       catchError((error: HttpErrorResponse) => {
         console.error(`Logout failed: ${error}`);
 
-        if (error.status == 401 || error.status == 403 || error.status == 400) {
+        if (error.status === 401 || error.status === 403 || error.status === 400) {
           console.error("Clearing local tokens due to failed logout/invalid token");
 
           localStorage.removeItem('accessToken');
@@ -101,9 +88,94 @@ export class AuthService {
 
           this._isLoggedIn.next(false);
           this.router.navigate(['/']);
+
+          // Return an empty observable to complete the stream gracefully
+          return new Observable(observer => {
+            observer.next(null);
+            observer.complete();
+          });
         }
         return throwError(() => new Error(`Status: ${error.status}, Message: ${error.message || 'Unknown error'}`))
       })
     )
+  }
+
+  // ===== PERMISSION CHECKING METHODS =====
+
+  // Check if user is logged in
+  isLoggedIn(): boolean {
+    const token = localStorage.getItem('accessToken');
+    return !!token;
+  }
+
+  // Get current user
+  getCurrentUser(): any {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return null;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+
+      const userId =
+        payload.sub ||
+        payload.nameid ||
+        payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+
+      return {
+        id: userId,
+        email:
+          payload.email ||
+          payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"],
+        roles:
+          payload.role ||
+          payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+          []
+      };
+
+    } catch {
+      return null;
+    }
+  }
+
+  // Get user roles from token
+  getCurrentUserRoles(): string[] {
+    const user = this.getCurrentUser();
+    return user?.roles || [];
+  }
+
+  // Check if user has a specific role
+  hasRole(roleName: string): boolean {
+    const roles = this.getCurrentUserRoles();
+    // Check both exact match and case-insensitive
+    return roles.some(role =>
+      role === roleName ||
+      role.toLowerCase() === roleName.toLowerCase()
+    );
+  }
+
+  // Check if user is SuperAdmin
+  isSuperAdmin(): boolean {
+    return this.hasRole('SuperAdmin') || this.hasRole('SUPERADMIN');
+  }
+
+  // Check if user is GroupAdmin
+  isGroupAdmin(): boolean {
+    return this.hasRole('GroupAdmin') || this.hasRole('GROUPADMIN');
+  }
+
+  // Check if user is RegularUser
+  isRegularUser(): boolean {
+    return this.hasRole('RegularUser') || this.hasRole('REGULARUSER');
+  }
+
+  // Check if user has any of the given roles
+  hasAnyRole(roleNames: string[]): boolean {
+    return roleNames.some(roleName => this.hasRole(roleName));
+  }
+
+  // Get current user ID
+  getCurrentUserId(): string {
+    const user = this.getCurrentUser();
+    return user?.id || '';
   }
 }

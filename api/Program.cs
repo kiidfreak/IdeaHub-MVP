@@ -1,242 +1,199 @@
-﻿using System;
-using System.IO;
+using api.Data;
+using api.Models;
+using api.Helpers;
+using api.Constants;
 using System.Text;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.OpenApi.Models;
-using Serilog;
-using Serilog.Events;
-using Serilog.Sinks.File;
-using AutoMapper;
-using FluentValidation;
-using FluentValidation.AspNetCore;
-using IdeaHub.Data;
-using IdeaHub.Models;
-using IdeaHub.Services.TokenService;
-using IdeaHub.Attributes;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using HealthChecks.UI.Client;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Versioning;
-using Microsoft.AspNetCore.Mvc.ApiExplorer;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using api.Services;
+using Microsoft.IdentityModel.JsonWebTokens;
+using System.Security.Claims;
 
+//Cors allowed origins
+var AllowedOrigins = "AllowedOrigins";
+
+//1. Create the builder
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
+//2. Add Services
+//2.1 Controllers Service
+builder.Services.AddControllers();
 
-try
-{
-    builder.Host.UseSerilog();
+//2.2 EF Core Service
+var connectionString = builder.Configuration.GetConnectionString("IdeahubString")
+    ?? throw new Exception("Connection String Not Found!");
 
-    // Add services to the container.
-    var services = builder.Services;
-    var configuration = builder.Configuration;
+builder.Services.AddDbContext<IdeahubDbContext>(options =>
+    options.UseNpgsql(connectionString)
+);
 
-    // Add DbContext
-    services.AddDbContext<IdeahubDbContext>(options =>
-        options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
-
-    // Add Identity
-    services.AddIdentity<User, IdentityRole>(options =>
+//2.3 Identity Service
+var requireConfirmedEmail = builder.Configuration.GetValue<bool>("SignIn:RequireConfirmedEmail", true);
+builder.Services.AddIdentity<IdeahubUser, IdentityRole>(options =>
     {
+        //Password Settings
         options.Password.RequireDigit = true;
-        options.Password.RequireLowercase = true;
-        options.Password.RequireNonAlphanumeric = true;
-        options.Password.RequireUppercase = true;
         options.Password.RequiredLength = 8;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        //User Settings
         options.User.RequireUniqueEmail = true;
+        //Sign In Settings
+        options.SignIn.RequireConfirmedEmail = requireConfirmedEmail;
     })
     .AddEntityFrameworkStores<IdeahubDbContext>()
     .AddDefaultTokenProviders();
 
-    // Add JWT Authentication
-    var jwtSettings = configuration.GetSection("Jwt");
-    var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]);
+//2.4 Authentication Service
+var JwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new Exception("JWT Key Not Found!");
 
-    services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
+//Convert key from hex string to byte array
+var key = JwtHexToBytes.FromHexToBytes(JwtKey);
+
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
+builder.Services.AddAuthentication(options => 
+{
+    //Use Jwt as default token for authentication & challenges
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
     .AddJwtBearer(options =>
     {
+        options.RequireHttpsMetadata = false; //SHOULD BE REMOVED EVENTUALLY
         options.TokenValidationParameters = new TokenValidationParameters
         {
+            //Validate token issuer, audience and signature
             ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+
             ValidateAudience = true,
-            ValidateLifetime = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(key)
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+
+            //Map the role claim type
+            RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                Console.WriteLine($"Auth failed: {ctx.Exception}");
+                return Task.CompletedTask;
+            }
         };
     });
 
-    // Add CORS
-    services.AddCors(options =>
-    {
-        options.AddPolicy("CorsPolicy",
-            builder => builder.AllowAnyOrigin()
-                              .AllowAnyMethod()
-                              .AllowAnyHeader());
-    });
+//2.5 Authorization Service
+builder.Services.AddAuthorization(options =>
+{
+    //SuperAdmin only can access stuff
+    options.AddPolicy("SuperAdminOnly", policy =>
+        policy.RequireRole(RoleConstants.SuperAdmin));
 
-    // Add Health Checks
-    services.AddHealthChecks()
-        .AddCheck("self", () => HealthCheckResult.Healthy());
+    //GroupAdmin (&SuperAdmin) can access stuff
+    options.AddPolicy("GroupAdminOnly", policy =>
+        policy.RequireAssertion(context => 
+            context.User.IsInRole(RoleConstants.SuperAdmin) ||
+            context.User.IsInRole(RoleConstants.GroupAdmin)
+        )
+    );
+});
 
-    // Add API Versioning
-    services.AddApiVersioning(options =>
-    {
-        options.DefaultApiVersion = new ApiVersion(1, 0);
-        options.AssumeDefaultVersionWhenUnspecified = true;
-        options.ReportApiVersions = true;
-        options.ApiVersionReader = ApiVersionReader.Combine(
-            new QueryStringApiVersionReader("api-version"),
-            new HeaderApiVersionReader("X-Version"),
-            new MediaTypeApiVersionReader("ver"));
-    });
+//2.6 CORS Service
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(AllowedOrigins, policy =>
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+    );
+});
 
-    services.AddVersionedApiExplorer(options =>
+//2.7 Customizing ModelState Validation
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
     {
-        options.GroupNameFormat = "'v'VVV";
-        options.SubstituteApiVersionInUrl = true;
-    });
+        var errors = context.ModelState
+                    .Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
 
-    // Add Swagger
-    services.AddSwaggerGen(c =>
+        var response = ApiResponse.Fail("Model State Validation Failed", errors);
+
+        return new BadRequestObjectResult(response);
+    };
+});
+
+//2.8 Email Sender
+builder.Services.AddScoped<api.Helpers.IEmailSender, EmailSender>();
+
+//2.9 Link the SendGridSettings class to the "SendGrid" user secrets
+builder.Services.Configure<SendGridSettings>(
+    builder.Configuration.GetSection("SendGridSettings"));
+
+//2.10 IToken Service
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+
+//3. Build the app
+var app = builder.Build();
+
+// APPLY EF MIGRATIONS HERE
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<IdeahubDbContext>();
+    db.Database.Migrate();
+}
+
+//Seed Roles at App Startup
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var roles = new[] { RoleConstants.SuperAdmin, RoleConstants.GroupAdmin, RoleConstants.RegularUser };
+
+    foreach (var role in roles)
     {
-        c.SwaggerDoc("v1", new OpenApiInfo { Title = "IdeaHub API", Version = "v1" });
-        
-        // Add JWT Authentication to Swagger
-        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        if (!await roleManager.RoleExistsAsync(role))
         {
-            Description = "JWT Authorization header using the Bearer scheme",
-            Name = "Authorization",
-            In = ParameterLocation.Header,
-            Type = SecuritySchemeType.ApiKey,
-            Scheme = "Bearer"
-        });
-
-        c.AddSecurityRequirement(new OpenApiSecurityRequirement
-        {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                Array.Empty<string>()
-            }
-        });
-    });
-
-    // Add AutoMapper
-    services.AddAutoMapper(typeof(Program).Assembly);
-
-    // Add FluentValidation
-    services.AddFluentValidationAutoValidation();
-    services.AddValidatorsFromAssemblyContaining<Program>();
-
-    // Add Application Services
-    services.AddScoped<ITokenService, TokenService>();
-    services.AddScoped<ValidateModelAttribute>();
-
-    // Add Controllers
-    services.AddControllers();
-
-    // Add Health Checks UI
-    services.AddHealthChecksUI()
-        .AddInMemoryStorage();
-
-    var app = builder.Build();
-
-    // Configure the HTTP request pipeline.
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseDeveloperExceptionPage();
-        app.UseSwagger();
-        app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "IdeaHub API v1"));
-    }
-
-    app.UseHttpsRedirection();
-    app.UseRouting();
-
-    // Use CORS before other middleware
-    app.UseCors("CorsPolicy");
-
-    app.UseAuthentication();
-    app.UseAuthorization();
-
-    // Health Check endpoints
-    app.UseHealthChecks("/health", new HealthCheckOptions
-    {
-        Predicate = _ => true,
-        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-    });
-
-    app.UseHealthChecksUI(options =>
-    {
-        options.UIPath = "/health-ui";
-        options.ApiPath = "/health-api";
-    });
-
-    app.UseEndpoints(endpoints =>
-    {
-        endpoints.MapControllers();
-    });
-
-    // Apply migrations and seed data
-    using (var scope = app.Services.CreateScope())
-    {
-        var servicesScope = scope.ServiceProvider;
-        try
-        {
-            var context = servicesScope.GetRequiredService<IdeahubDbContext>();
-            context.Database.Migrate();
-            // Seed data if needed
-            // await SeedData.Initialize(servicesScope);
-        }
-        catch (Exception ex)
-        {
-            var logger = servicesScope.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "An error occurred while migrating or initializing the database.");
+            await roleManager.CreateAsync(new IdentityRole(role));
         }
     }
+}
 
-    app.Run();
-}
-catch (Exception ex)
+
+
+//4. Add MiddleWare
+if (app.Environment.IsDevelopment())
 {
-    Log.Fatal(ex, "Host terminated unexpectedly");
-    return 1;
+    app.UseMigrationsEndPoint();
+} else
+{ 
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
-finally
-{
-    Log.CloseAndFlush();
-}
-return 0;
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+app.UseCors(AllowedOrigins);
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+//5. Run the App
+app.Run();
+

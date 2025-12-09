@@ -1,35 +1,33 @@
-<aside class="sidebar" [class.collapsed]="isCollapsed">
-    <div class="sidebar-header">
-        <div class="logo">
-            <span class="logo-icon">⚡</span>
-            <span class="logo-text" *ngIf="!isCollapsed">IdeaHub</span>
-        </div>
-        <button class="collapse-btn" (click)="toggleSidebar()">
-            <span *ngIf="!isCollapsed">◀</span>
-            <span *ngIf="isCollapsed">▶</span>
+<div class="sidebar" [class.collapsed]="isCollapsed">
+    <div class="toggle-btn-container">
+        <button class="toggle-btn" (click)="toggleSidebar()">
+            <lucide-icon [img]="isCollapsed ? icons.expand : icons.collapse" class="toggle-icon"></lucide-icon>
         </button>
     </div>
 
-    <nav class="nav-menu">
-        @for (item of navItems; track item.route) {
-        <a [routerLink]="item.route" routerLinkActive="active" class="nav-item" [title]="item.label">
-            <span class="nav-icon">{{item.icon}}</span>
-            <span class="nav-label" *ngIf="!isCollapsed">{{item.label}}</span>
-            @if (item.badge && !isCollapsed) {
-            <span class="nav-badge">{{item.badge}}</span>
-            }
+    <nav class="nav-links">
+        <a routerLink="/home" routerLinkActive="active" class="nav-item">
+            <lucide-icon [img]="icons.dashboard" class="nav-icon"></lucide-icon>
+            @if (!isCollapsed) { <span>Dashboard</span> }
         </a>
-        }
+        <a routerLink="/my-ideas" routerLinkActive="active" class="nav-item">
+            <lucide-icon [img]="icons.ideas" class="nav-icon"></lucide-icon>
+            @if (!isCollapsed) { <span>My Ideas</span> }
+        </a>
+        <a routerLink="/groups" routerLinkActive="active" class="nav-item">
+            <lucide-icon [img]="icons.groups" class="nav-icon"></lucide-icon>
+            @if (!isCollapsed) { <span>Groups</span> }
+        </a>
+        <a routerLink="/projects" routerLinkActive="active" class="nav-item">
+            <lucide-icon [img]="icons.projects" class="nav-icon"></lucide-icon>
+            @if (!isCollapsed) { <span>Projects</span> }
+        </a>
     </nav>
 
     <div class="sidebar-footer">
-        <div class="user-info" *ngIf="!isCollapsed">
-            <div class="user-avatar">U</div>
-            <div class="user-details">
-                <div class="user-name">User Name</div>
-                <div class="user-level">Specialist</div>
-            </div>
-        </div>
-        <div class="user-avatar-only" *ngIf="isCollapsed">U</div>
+        <a (click)="onLogout()" class="nav-item logout">
+            <lucide-icon [img]="icons.logout" class="nav-icon"></lucide-icon>
+            @if (!isCollapsed) { <span>Logout</span> }
+        </a>
     </div>
-</aside>
+</div>

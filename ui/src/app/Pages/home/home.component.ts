@@ -1,66 +1,107 @@
-import { Component, inject, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { AuthService } from '../../Services/auth/auth.service';
-import { IdeaService } from '../../Services/idea/idea.service';
-import { Idea } from '../../Interfaces/Idea/idea.interface';
-import { IdeaCardComponent } from '../../Components/idea-card/idea-card.component';
-import { BaseLayoutComponent } from '../../Components/base-layout/base-layout.component';
-import { CreateIdeaComponent } from '../../Components/create-idea/create-idea.component';
-import { UserStatsCardComponent } from '../../Components/user-stats-card/user-stats-card.component';
+import { Component, OnInit } from '@angular/core';
+import { BaseLayoutComponent } from "../../Components/base-layout/base-layout.component";
+import { AnalyticsService } from '../../Services/analytics.service';
+import { CommonModule } from '@angular/common';
+
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  heroChartBar,
+  heroLockOpen,
+  heroRocketLaunch,
+  heroLockClosed,
+  heroFire,
+  heroTrophy,
+  heroBuildingOffice2,
+  heroLightBulb,
+  heroHandThumbUp,
+  heroBriefcase,
+  heroClock
+} from '@ng-icons/heroicons/outline';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [IdeaCardComponent, BaseLayoutComponent, CreateIdeaComponent, UserStatsCardComponent],
+  imports: [BaseLayoutComponent, CommonModule, NgIcon],
+  viewProviders: [provideIcons({
+    heroChartBar,
+    heroLockOpen,
+    heroRocketLaunch,
+    heroLockClosed,
+    heroFire,
+    heroTrophy,
+    heroBuildingOffice2,
+    heroLightBulb,
+    heroHandThumbUp,
+    heroBriefcase,
+    heroClock
+  })],
   templateUrl: './home.component.html',
-  styleUrl: './home.component.scss',
+  styleUrl: './home.component.scss'
 })
 export class HomeComponent implements OnInit {
-  authService = inject(AuthService);
-  ideaService = inject(IdeaService);
-  router = inject(Router);
+  mostVotedIdeas: any[] = [];
+  topContributors: any[] = [];
+  promotedIdeas: any[] = [];
+  ideaStats: any = null;
+  groupEngagement: any[] = [];
+  personalStats: any = null;
+  recentActivity: any[] = [];
 
-  ideas: Idea[] = [];
-  showCreateModal = false;
+  constructor(private analyticsService: AnalyticsService) { }
 
   ngOnInit(): void {
-    this.loadIdeas();
+    this.fetchAnalytics();
   }
 
-  loadIdeas() {
-    this.ideaService.getIdeas().subscribe({
-      next: (response) => {
-        if (response.success && response.data) {
-          this.ideas = response.data;
-        }
+  fetchAnalytics() {
+    this.analyticsService.getMostVotedIdeas().subscribe({
+      next: (res) => {
+        if (res.status) this.mostVotedIdeas = res.data;
       },
-      error: (err) => console.error('Failed to load ideas', err)
+      error: (err) => console.error('Error fetching most voted ideas', err)
     });
-  }
 
-  logout() {
-    this.authService.logout().subscribe({
-      next: () => {
-        this.router.navigate(['/login']);
+    this.analyticsService.getTopContributors().subscribe({
+      next: (res) => {
+        if (res.status) this.topContributors = res.data;
       },
-      error: (err) => {
-        console.error('Logout failed', err);
-      },
+      error: (err) => console.error('Error fetching top contributors', err)
     });
-  }
 
-  onVote(ideaId: number) {
-    console.log('Voted for idea:', ideaId);
-    // TODO: Implement vote API call
-    // For now, optimistically update the vote count
-    const idea = this.ideas.find(i => i.id === ideaId);
-    if (idea) {
-      idea.voteCount++;
-    }
-  }
+    this.analyticsService.getPromotedIdeas().subscribe({
+      next: (res) => {
+        if (res.status) this.promotedIdeas = res.data;
+      },
+      error: (err) => console.error('Error fetching promoted ideas', err)
+    });
 
-  onViewDetails(ideaId: number) {
-    console.log('View details for idea:', ideaId);
-    // TODO: Navigate to idea details page
+    this.analyticsService.getIdeaStatistics().subscribe({
+      next: (res) => {
+        if (res.status) this.ideaStats = res.data;
+      },
+      error: (err) => console.error('Error fetching idea statistics', err)
+    });
+
+    this.analyticsService.getGroupEngagement().subscribe({
+      next: (res) => {
+        if (res.status) this.groupEngagement = res.data;
+      },
+      error: (err) => console.error('Error fetching group engagement', err)
+    });
+
+    this.analyticsService.getPersonalStats().subscribe({
+      next: (res) => {
+        if (res.status) this.personalStats = res.data;
+      },
+      error: (err) => console.error('Error fetching personal stats', err)
+    });
+
+    this.analyticsService.getRecentActivity().subscribe({
+      next: (res) => {
+        if (res.status) this.recentActivity = res.data;
+      },
+      error: (err) => console.error('Error fetching recent activity', err)
+    });
   }
 }
+

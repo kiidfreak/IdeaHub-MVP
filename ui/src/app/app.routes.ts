@@ -39,39 +39,21 @@ export const routes: Routes = [
       import('./Pages/home/home.component').then((m) => m.HomeComponent),
   },
   {
-    path: 'leaderboard',
+    path: 'my-ideas',
     canActivate: [AuthGuard],
     loadComponent: () =>
-      import('./Pages/leaderboard/leaderboard.component').then((m) => m.LeaderboardComponent),
+      import('./Pages/my-ideas/my-ideas.component').then((m) => m.MyIdeasComponent),
   },
   {
-    path: 'profile',
+    path: 'groups',
     canActivate: [AuthGuard],
     loadComponent: () =>
-      import('./Pages/profile/profile.component').then((m) => m.ProfileComponent),
+      import('./Pages/group/group.component').then((m) => m.GroupsComponent),
   },
   {
-    path: 'settings',
-    canActivate: [AuthGuard],
-    loadComponent: () =>
-      import('./Pages/settings/settings.component').then((m) => m.SettingsComponent),
-  },
-  {
-    path: 'ideas',
+    path: 'groups/:groupId/ideas',
     canActivate: [AuthGuard],
     loadComponent: () =>
       import('./Pages/ideas/ideas.component').then((m) => m.IdeasComponent),
-  },
-  {
-    path: 'analytics',
-    canActivate: [AuthGuard],
-    loadComponent: () =>
-      import('./Pages/analytics/analytics.component').then((m) => m.AnalyticsComponent),
-  },
-  {
-    path: 'activity',
-    canActivate: [AuthGuard],
-    loadComponent: () =>
-      import('./Pages/activity/activity.component').then((m) => m.ActivityComponent),
-  },
+  }
 ];

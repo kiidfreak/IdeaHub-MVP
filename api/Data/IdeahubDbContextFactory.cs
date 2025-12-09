@@ -1,28 +1,27 @@
-// Data/IdeahubDbContextFactory.cs
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using Microsoft.Extensions.Configuration;
-using System.IO;
+namespace api.Data;
 
-namespace IdeaHub.Data
+public class IdeahubDbContextFactory : IDesignTimeDbContextFactory<IdeahubDbContext>
 {
-    public class IdeahubDbContextFactory : IDesignTimeDbContextFactory<IdeahubDbContext>
+    public IdeahubDbContext CreateDbContext(string[] args)
     {
-        public IdeahubDbContext CreateDbContext(string[] args)
-        {
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json")
+        //manually configure iConfiguation to get connectionString env variable
+        var configuration = new ConfigurationBuilder()
                 .AddUserSecrets<IdeahubDbContextFactory>()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddEnvironmentVariables()
                 .Build();
 
-            var optionsBuilder = new DbContextOptionsBuilder<IdeahubDbContext>();
-            var connectionString = configuration.GetConnectionString("DefaultConnection");
-            
-            optionsBuilder.UseNpgsql(connectionString);
-
-            return new IdeahubDbContext(optionsBuilder.Options);
+        var connectionString = configuration["ConnectionStrings:IdeahubString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new Exception("Connection string is empty");
         }
+        var optionsBuilder = new DbContextOptionsBuilder<IdeahubDbContext>();
+        optionsBuilder.UseNpgsql(connectionString);
+        return new IdeahubDbContext(optionsBuilder.Options);
     }
 }

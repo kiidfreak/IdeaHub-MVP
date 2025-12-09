@@ -55,10 +55,5 @@ nunit-*.xml
 
 #Angular
 node_modules
-
-# Local/Temp files
-*.bak
-build_*.txt
-errors.txt
-api/package-lock.json
-/package-lock.json
+api/appsettings.json
+.env
