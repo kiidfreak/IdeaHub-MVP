@@ -29,6 +29,9 @@ services:
       SendGridSettings__SenderEmail: noreply@ideahub.com
       SendGridSettings__SenderName: Ideahub
       SignIn__RequireConfirmedEmail: "false"
+      Jwt__Key: "3538303035333830303533383030353338303035333830303533383030353338" # 32 bytes hex
+      Jwt__Issuer: "http://localhost:5065"
+      Jwt__Audience: "http://localhost:4200"
     ports:
       - "5065:5065"
     depends_on:

@@ -32,19 +32,28 @@ export const routes: Routes = [
         (m) => m.LoginPageComponent
       ),
   },
-
+  {
+    path: 'home',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/home/home.component').then((m) => m.HomeComponent),
+  },
+  {
+    path: 'my-ideas',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/my-ideas/my-ideas.component').then((m) => m.MyIdeasComponent),
+  },
+  {
+    path: 'groups',
+    canActivate: [AuthGuard],
+    loadComponent: () =>
+      import('./Pages/group/group.component').then((m) => m.GroupsComponent),
+  },
   {
     path: 'groups/:groupId/ideas',
     canActivate: [AuthGuard],
     loadComponent: () =>
       import('./Pages/ideas/ideas.component').then((m) => m.IdeasComponent),
   }
-  // {
-  //   path: 'notifications',
-  //   canActivate: [AuthGuard],
-  //   loadComponent: () =>
-  //     import('./Pages/notifications/notifications.component').then(
-  //       (m) => m.NotificationsComponent
-  //     ),
-  // }
 ];
