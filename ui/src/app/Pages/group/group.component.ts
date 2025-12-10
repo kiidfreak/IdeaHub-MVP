@@ -6,6 +6,7 @@ import { GroupsService } from '../../Services/groups.service';
 import { AuthService } from '../../Services/auth/auth.service';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { GroupDetailsModalComponent } from '../../Components/modals/group-details-modal/group-details-modal.component';
 import { GroupMembersModalComponent } from '../../Components/modals/group-members-modal/group-members-modal.component';
 import { DeleteGroupModalComponent } from '../../Components/modals/delete-group-modal/delete-group-modal.component';
@@ -52,7 +53,8 @@ export class GroupsComponent implements OnInit {
     private groupsService: GroupsService,
     private authService: AuthService,
     private dialog: MatDialog,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private router: Router
   ) {
     this.createGroupForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
@@ -186,7 +188,7 @@ export class GroupsComponent implements OnInit {
       return;
     }
 
-    alert(`Viewing ideas for group: ${group.name}\n\nThis feature is coming soon!\n\nYou will be able to:\n- View all ideas in this group\n- Submit new ideas\n- Vote and comment on ideas`);
+    this.router.navigate(['/groups', groupId, 'ideas']);
   }
 
   onJoinGroup(groupId: string): void {

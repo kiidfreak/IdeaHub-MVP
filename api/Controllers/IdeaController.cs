@@ -81,7 +81,7 @@ public class IdeaController : ControllerBase
 
     //View all ideas
     [HttpGet("view-ideas")]
-    public async Task<IActionResult> ViewIdeas(int groupId)
+    public async Task<IActionResult> ViewIdeas([FromQuery] int groupId)
     {
         //Fetch user
         var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? "Email not found";
@@ -108,22 +108,35 @@ public class IdeaController : ControllerBase
             return NotFound(ApiResponse.Fail("User not in group"));
         }
 
-        //Fetch ideas
-        var ideas = await _context.Ideas.Where(i => i.GroupId == groupId).ToListAsync();
-        if (ideas.Count == 0)
+        //Fetch ideas with related data
+        var ideas = await _context.Ideas
+            .Include(i => i.User)
+            .Where(i => i.GroupId == groupId)
+            .OrderByDescending(i => i.CreatedAt)
+            .Select(i => new 
+            {
+                i.Id,
+                i.Title,
+                i.Description,
+                i.Status,
+                i.CreatedAt,
+                i.IsPromotedToProject,
+                CreatedBy = new 
+                {
+                    i.User.DisplayName,
+                    i.User.Email
+                },
+                VoteCount = _context.Votes.Count(v => v.IdeaId == i.Id),
+                UserHasVoted = _context.Votes.Any(v => v.IdeaId == i.Id && v.UserId == userId)
+            })
+            .ToListAsync();
+
+        if (!ideas.Any())
         {
-            _logger.LogError("No ideas exist in group: {groupName}", group.Name);
-            return NotFound(ApiResponse.Fail("No ideas exist in group"));
+            return Ok(ApiResponse.Ok("No ideas found for this group", new List<object>()));
         }
 
-        var ideaDataToReturn = new List<object>();
-        foreach (var idea in ideas)
-        {
-            ideaDataToReturn.Add(new { idea.Title, idea.Description, idea.Group.Name});
-        }
-
-        _logger.LogInformation($"The {ideas.Count()} ideas in group {group.Name} are: ", ideaDataToReturn);
-        return Ok(ApiResponse.Ok($"{ideas.Count()} Ideas found", ideaDataToReturn));
+        return Ok(ApiResponse.Ok($"{ideas.Count} Ideas found", ideas));
     }
 
     //View an idea
